@@ -1,0 +1,87 @@
+# .NET build artifacts
+bin/
+obj/
+[Bb]uild/
+[Ll]og/
+[Ll]ogs/
+[Dd]ebug/
+[Rr]elease/
+[Tt]est[Rr]esult*/
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# IDE metadata
+.idea/
+*.sln.iml
+
+# Generated binaries and intermediates
+*.dll
+*.exe
+*.pdb
+*.cache
+*.tmp
+*.tmp_proj
+*.pidb
+*.log
+*.tlog
+*.lib
+*.ncb
+*.opendb
+*.obj
+*.pch
+*.pgc
+*.pgd
+*.rsp
+*.sbr
+*.tlh
+*.tli
+*.ilk
+*.idb
+*.iobj
+*.ipdb
+*_wpftmp.csproj
+
+# Packaging
+*.nupkg
+*.snupkg
+.packages/
+
+# NuGet
+.nuget/
+packages/
+project.lock.json
+*.nuget.props
+*.nuget.targets
+
+# Logs
+*.svclog
+*.coverage
+*.coveragexml
+coverage*/
+TestResult.xml
+
+# Entity Framework migrations cache
+Migrations/
+
+# Secrets
+appsettings.*.local.json
+appsettings.*.secrets.json
+secrets.json
+
+# Rider / JetBrains settings
+.idea/
+.idea.Modules.xml
+
+# VS Code workspace files
+.vscode/
+
+# System files
+.DS_Store
+Thumbs.db
+*.lnk
+~$*
