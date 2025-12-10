@@ -1,0 +1,180 @@
+Segun las siguientes historias de usuario: Asambleas ADMINISTRADOR El sistema debe permitir al usuario administrador crear una nueva asamblea en un formulario de creación, el formulario debe tener Descripción, Reglas, Orden del día. El sistema debe permitir organizar a necesidad del administrador el orden de los topics que se van a tratar en la asamblea. El sistema debe permitir registrar una fecha de inicio y una fecha de fin para cada topics. El sistema debe permitir registrar preguntas de SI/NO en cada topic. El sistema debe permitir al administrador registrar su voto únicamente cuando se encuentre en empate alguna pregunta. El sistema debe permitir al administrador configurar las personas que pueden realizar el voto de dar inicio a la asamblea, es decir, si la asamblea ya dio inicio, este le debe restringir poder agregar mas personas a la asamblea. RESIDENTE El sistema debe notificar a los usuarios asignador a la asamblea, que fueron asignados a una asamblea, debe mostrar fecha de inicio de la asamblea y los topics de la misma. El sistema debe permitir ver el listado de asambleas al cual el usuario se encuentra asignado. El sistema debe permitir ver el detalle de la asamblea seleccionada en el historial, únicamente se deme mostrar la fecha de inicio, la fecha final, descripción y topics. El sistema debe permitir mostrar al usuario asignado a la asamblea registrar su voto cuando el sistema le indique, esto solo puede ocurrir mientras esta la asamblea en proceso y mientras se muestra la pregunta. El sistema debe restringir al usuario no realizar el boto si la pregunta de la asamblea ya fue procesada, es decir al finalizar la pregunta ya no se pueden registrar mas votos a este. El sistema debe mostrar automáticamente el topics que se esta tratando en ese momento y/o la pregunta, es decir en el momento que se este tratando el tema y/o la pregunta esta debe abrirle automáticamente en el dispositivo que se encuentre el usuario, si es una pregunta este debe mostrar la fecha de finalización de la pregunta y permitirle votar. El sistema debe almacenar auditoria de todas las operaciones que se realicen incluyendo las descargas de los archivos. Cual seria una base de datos propuesta para desarrollar el proyecto ?
+
+Segun la base de datos propuesta, se pueden aplicar ciertas mejoras, en los nombres designados se podrian cambiar los topics por questions y los AssemblyTopicQuestion puede ser una tabla de OptionsQuestions, y los votos de AssemblyStartVote se puede almacenar en yuna misma tabla de votos, añadiendole un campo extra que defina si dicho voto es para dar inicio a una asamblea
+
+Ahora hay que manejar tablas generales, por ejemplo, la tabla de los usuarios, donde se va a almacernar la informacion basica del usuario, usuario, contraseña, tambien se debe crear una tabla aparte donde se valide los usuarios que estan dentro de la asamblea, es decir "Usuarios confirmados", ya que estos son los unicos que pueden votar en la asamblea a la que pertenecen, tambien una tabla donde se almacenen los resultados finales de cada asamblea, es decir donde se guarde un total de los votos de cada pregunta
+
+Ahora crea un script simple para la base de datos en postgres, unicamente crea las tablas, datos y relaciones, no agregues borrados en cascada ni reglas de uso
+
+
+No utulices datos de tipo bigserial, utiliza GUUID
+
+
+A la base de datos le hacen falta tablas maestras, es decir una tabla donde se defina "AssemblyStatus" etc, la base de datos debe estar normalizada y no deben haber campos que tengan varios valores
+
+
+
+En la carpeta entities, agrega las entidades necesarias para esta base de datos:
+-- ============================================================================ -- EXTENSIÓN PARA UUID -- ============================================================================ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+-- ============================================================================ -- TABLAS BÁSICAS -- ============================================================================
+-- Usuarios del sistema CREATE TABLE users ( id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(), username        VARCHAR(50)  NOT NULL UNIQUE, email           VARCHAR(55) UNIQUE, password_hash   VARCHAR(100) NOT NULL, is_active       BOOLEAN      NOT NULL DEFAULT TRUE, created_at      TIMESTAMPTZ  NOT NULL, last_login_at   TIMESTAMPTZ );
+-- Propiedades / conjuntos (simple, para FK de assemblies) CREATE TABLE properties ( id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(), name        VARCHAR(200) NOT NULL );
+-- Asambleas CREATE TABLE assemblies ( id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(), property_id         UUID         NOT NULL, title               VARCHAR(200) NOT NULL, description         VARCHAR(2000), rules               VARCHAR(2000), start_date_planned  TIMESTAMPTZ, end_date_planned    TIMESTAMPTZ, start_date_actual   TIMESTAMPTZ, end_date_actual     TIMESTAMPTZ, status              VARCHAR(20)  NOT NULL DEFAULT 'Scheduled', created_by_user_id  UUID         NOT NULL, created_at          TIMESTAMPTZ  NOT NULL,
+CONSTRAINT fk_assemblies_property
+    FOREIGN KEY (property_id) REFERENCES properties (id),
+CONSTRAINT fk_assemblies_created_by_user
+    FOREIGN KEY (created_by_user_id) REFERENCES users (id)
+);
+-- Participantes de la asamblea (usuarios asignados) CREATE TABLE assembly_participants ( id                          UUID PRIMARY KEY DEFAULT uuid_generate_v4(), assembly_id                 UUID    NOT NULL, user_id                     UUID    NOT NULL, is_voting_member            BOOLEAN NOT NULL DEFAULT TRUE, can_vote_to_start_assembly  BOOLEAN NOT NULL DEFAULT FALSE, is_administrator            BOOLEAN NOT NULL DEFAULT FALSE, is_active                   BOOLEAN NOT NULL DEFAULT TRUE, created_at                  TIMESTAMPTZ NOT NULL,
+CONSTRAINT fk_participants_assembly
+    FOREIGN KEY (assembly_id) REFERENCES assemblies (id),
+CONSTRAINT fk_participants_user
+    FOREIGN KEY (user_id) REFERENCES users (id),
+CONSTRAINT uq_participants_assembly_user
+    UNIQUE (assembly_id, user_id)
+);
+-- Participantes confirmados (solo estos pueden votar) CREATE TABLE assembly_confirmed_participants ( id                    UUID PRIMARY KEY DEFAULT uuid_generate_v4(), assembly_id           UUID         NOT NULL, participant_id        UUID         NOT NULL, confirmed_at          TIMESTAMPTZ  NOT NULL, confirmed_by_user_id  UUID, confirmation_method   VARCHAR(50),
+CONSTRAINT fk_confirmed_assembly
+    FOREIGN KEY (assembly_id) REFERENCES assemblies (id),
+CONSTRAINT fk_confirmed_participant
+    FOREIGN KEY (participant_id) REFERENCES assembly_participants (id),
+CONSTRAINT fk_confirmed_by_user
+    FOREIGN KEY (confirmed_by_user_id) REFERENCES users (id),
+CONSTRAINT uq_confirmed_assembly_participant
+    UNIQUE (assembly_id, participant_id)
+);
+-- Preguntas (antes "topics") CREATE TABLE assembly_questions ( id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(), assembly_id         UUID          NOT NULL, title               VARCHAR(200)  NOT NULL, description         VARCHAR(2000), order_index         INT           NOT NULL, start_date          TIMESTAMPTZ, end_date            TIMESTAMPTZ, status              VARCHAR(20)   NOT NULL DEFAULT 'Planned', created_at          TIMESTAMPTZ   NOT NULL, created_by_user_id  UUID          NOT NULL,
+CONSTRAINT fk_questions_assembly
+    FOREIGN KEY (assembly_id) REFERENCES assemblies (id),
+CONSTRAINT fk_questions_created_by_user
+    FOREIGN KEY (created_by_user_id) REFERENCES users (id)
+);
+-- Opciones de cada pregunta (Sí / No / etc.) CREATE TABLE assembly_question_options ( id           UUID PRIMARY KEY DEFAULT uuid_generate_v4(), question_id  UUID         NOT NULL, text         VARCHAR(200) NOT NULL, value        VARCHAR(50), order_index  INT          NOT NULL, is_active    BOOLEAN      NOT NULL DEFAULT TRUE,
+CONSTRAINT fk_options_question
+    FOREIGN KEY (question_id) REFERENCES assembly_questions (id)
+);
+-- Votos (inicio de asamblea, preguntas normales y desempate) CREATE TABLE assembly_votes ( id                          UUID PRIMARY KEY DEFAULT uuid_generate_v4(), assembly_id                 UUID         NOT NULL, question_id                 UUID, option_id                   UUID, confirmed_participant_id    UUID         NOT NULL, vote_type                   VARCHAR(20)  NOT NULL,  -- StartAssembly / Question / TieBreak created_at                  TIMESTAMPTZ  NOT NULL,
+CONSTRAINT fk_votes_assembly
+    FOREIGN KEY (assembly_id) REFERENCES assemblies (id),
+CONSTRAINT fk_votes_question
+    FOREIGN KEY (question_id) REFERENCES assembly_questions (id),
+CONSTRAINT fk_votes_option
+    FOREIGN KEY (option_id) REFERENCES assembly_question_options (id),
+CONSTRAINT fk_votes_confirmed_participant
+    FOREIGN KEY (confirmed_participant_id) REFERENCES assembly_confirmed_participants (id)
+);
+-- Resultados finales (totales de votos por opción de cada pregunta) CREATE TABLE assembly_question_results ( id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(), assembly_id       UUID         NOT NULL, question_id       UUID         NOT NULL, option_id         UUID         NOT NULL, votes_count       INT          NOT NULL, is_winning_option BOOLEAN      NOT NULL DEFAULT FALSE, is_tie            BOOLEAN      NOT NULL DEFAULT FALSE, calculated_at     TIMESTAMPTZ  NOT NULL,
+CONSTRAINT fk_results_assembly
+    FOREIGN KEY (assembly_id) REFERENCES assemblies (id),
+CONSTRAINT fk_results_question
+    FOREIGN KEY (question_id) REFERENCES assembly_questions (id),
+CONSTRAINT fk_results_option
+    FOREIGN KEY (option_id) REFERENCES assembly_question_options (id)
+);
+Sigue en todo momento la estructura actual del proyecto (Clean arquitecture) orientada a DDD, No agregues archivos ni hagas modificaciones diferentes a las que te diga, manten siempre un codigo muy corto y simple, no añadas nada que no sea estrictamente necesario y responde siempre en español
+
+
+Crea las relaciones y configuraciones necesarias para conectar la api con entity framework a PostgresSQL
+
+
+No agregues archivos de documentacion, y la aplicacion no se va a trabajar con migraciones
+
+
+
+Implementa DDD en la capa de dominio, incluyendo: Entidades con identidad clara y reglas de negocio asociadas. Value Objects para modelar conceptos inmutables y con igualdad por valor. Agregados con sus raíces, definiendo correctamente los invariantes del dominio
+Sigue la estructura actual del proyecto, siguiendo la arquitectura limpia "Clean" orientada a DDD, manten un codigo simple y corto, no crees archivos ni codigo que no sea estrictamente necesario
+
+
+
+El diseño dirigido por el dominio (DDD) defiende el modelado basado en la realidad empresarial que es relevante para tus casos de uso. En el contexto de la creación de aplicaciones, DDD habla sobre problemas como dominios. Describe áreas de problemas independientes como Contextos delimitados (cada Contexto delimitado se correlaciona con un microservicio) y enfatiza un lenguaje común para hablar sobre estos problemas. También sugiere muchos conceptos y patrones técnicos, como entidades de dominio con modelos enriquecidos (sin modelo de dominio anémico), objetos de valor, agregados y reglas de raíz agregada (o entidad raíz) para admitir la implementación interna. En esta sección se presenta el diseño y la implementación de esos patrones internos. A veces, estas reglas y patrones técnicos de DDD se perciben como obstáculos que tienen una curva de aprendizaje empinada para implementar enfoques DDD. Pero la parte importante no es los propios patrones, sino la organización del código para que esté alineado con los problemas empresariales y el uso de los mismos términos empresariales (lenguaje omnipresente). Además, los enfoques DDD solo se deben aplicar si va a implementar microservicios complejos con reglas de negocio significativas. Las responsabilidades más sencillas, como un servicio CRUD, se pueden administrar con enfoques más sencillos. Dónde dibujar los límites es la tarea clave al diseñar y definir un microservicio. Los patrones DDD le ayudan a comprender la complejidad del dominio. Para el modelo de dominio para cada contexto enlazado, se identifican y definen las entidades, los objetos de valor y los agregados que modelan el dominio. Se compila y se refina un modelo de dominio que se encuentra dentro de un límite que define el contexto. Y eso es explícito en forma de microservicio. Los componentes dentro de esos límites terminan siendo sus microservicios, aunque en algunos casos un microservicio bc o empresarial puede estar compuesto de varios servicios físicos. DDD trata sobre límites, al igual que los microservicios. Mantener los límites de contexto de microservicio relativamente pequeños Determinar dónde colocar límites entre contextos delimitados busca un equilibrio entre dos objetivos en competencia. En primer lugar, desea crear inicialmente los microservicios más pequeños posibles, aunque eso no debe ser el controlador principal; debe crear un límite en torno a las cosas que necesitan cohesión. En segundo lugar, le interesa evitar comunicaciones locuaces entre microservicios. Estos objetivos pueden contradecirse entre sí. Para equilibrar los microservicios, descompón el sistema en tantos pequeños microservicios como puedas hasta que veas que los límites de comunicación crecen rápidamente con cada intento adicional de separar un nuevo Contexto Delimitado. La cohesión es clave dentro de un único contexto limitado. Se parece a una inadecuada intuición de código de cercanía al implementar las clases. Si dos microservicios necesitan colaborar mucho entre sí, probablemente deberían ser el mismo microservicio. Otra manera de mirar este aspecto es la autonomía. Si un microservicio debe confiar en otro servicio para atender directamente una solicitud, no es realmente autónomo. Niveles en microservicios de DDD La mayoría de las aplicaciones empresariales con una complejidad técnica y empresarial significativa se definen mediante varias capas. Las capas son un artefacto lógico y no están relacionados con la implementación del servicio. Existen para ayudar a los desarrolladores a administrar la complejidad en el código. Es posible que diferentes capas (como la capa de modelo de dominio frente a la capa de presentación, etc.) tengan tipos diferentes, que exigen traducciones entre esos tipos. Por ejemplo, una entidad podría cargarse desde la base de datos. A continuación, parte de esa información o una agregación de información, incluidos datos adicionales de otras entidades, se puede enviar a la interfaz de usuario del cliente a través de una API web REST. El punto aquí es que la entidad de dominio está contenida en la capa de modelo de dominio y no debe propagarse a otras áreas a las que no pertenece, como a la capa de presentación. Además, debe tener entidades siempre válidas (consulte la sección Diseño de validaciones en la capa de modelo de dominio) controlada por raíces agregadas (entidades raíz). Por lo tanto, las entidades no deben estar ligadas a las vistas del cliente, ya que, en el nivel de la interfaz de usuario, puede que algunos datos aún no hayan sido validados. Este es precisamente el propósito del ViewModel. ViewModel es un modelo de datos exclusivamente para las necesidades de la capa de presentación. Las entidades de dominio no pertenecen directamente a ViewModel. En cambio, debe traducir entre ViewModels y entidades de dominio, y viceversa. Al abordar la complejidad, es importante tener un modelo de dominio controlado por raíces agregadas que asegúrese de que todas las invariables y reglas relacionadas con ese grupo de entidades (agregado) se realizan a través de un único punto de entrada o puerta, la raíz de agregado.
+
+
+
+
+Siguiendo la estructura y la arquitectura actual del proyecto, y teniendo en cuenta las historias de usuario:
+ADMINISTRADOR
+El sistema debe permitir al usuario administrador crear una nueva asamblea en un formulario de creación, el formulario debe tener Descripción, Reglas, Orden del día. El sistema debe permitir organizar a necesidad del administrador el orden de los topics que se van a tratar en la asamblea. El sistema debe permitir registrar una fecha de inicio y una fecha de fin para cada topics. El sistema debe permitir registrar preguntas de SI/NO en cada topic. El sistema debe permitir al administrador registrar su voto únicamente cuando se encuentre en empate alguna pregunta. El sistema debe permitir al administrador configurar las personas que pueden realizar el voto de dar inicio a la asamblea, es decir, si la asamblea ya dio inicio, este le debe restringir poder agregar mas personas a la asamblea.
+RESIDENTE El sistema debe notificar a los usuarios asignador a la asamblea, que fueron asignados a una asamblea, debe mostrar fecha de inicio de la asamblea y los topics de la misma. El sistema debe permitir ver el listado de asambleas al cual el usuario se encuentra asignado. El sistema debe permitir ver el detalle de la asamblea seleccionada en el historial, únicamente se deme mostrar la fecha de inicio, la fecha final, descripción y topics. El sistema debe permitir mostrar al usuario asignado a la asamblea registrar su voto cuando el sistema le indique, esto solo puede ocurrir mientras esta la asamblea en proceso y mientras se muestra la pregunta. El sistema debe restringir al usuario no realizar el boto si la pregunta de la asamblea ya fue procesada, es decir al finalizar la pregunta ya no se pueden registrar mas votos a este. El sistema debe mostrar automáticamente el topics que se esta tratando en ese momento y/o la pregunta, es decir en el momento que se este tratando el tema y/o la pregunta esta debe abrirle automáticamente en el dispositivo que se encuentre el usuario, si es una pregunta este debe mostrar la fecha de finalización de la pregunta y permitirle votar.
+El sistema debe almacenar auditoria de todas las operaciones que se realicen incluyendo las descargas de los archivos.
+Y manteniendo un codigo simple y corto pero eficiente y funcional. Termina de crear el "Crear asamblea" sigue la estructura y encarpetado ya definido, no crees codigo ni archivos innecesarios
+
+
+
+Porque la creacion de la asmblea esta recibieno una lista de preguntas ? La creacion de las preguntas debe ir en un CQRS aparte, y debe incluir una relacion de question y asamblea, es decir las preguntas deben estar relacionadas a una asamblea y las preguntas deben tener su propio CQRS, manteniendo la independencia
+
+
+
+Para agregar un participante tambien debe ser en un CQRS aparte con su propio repositorio, ya que es algo independiente
+
+
+
+Ahora implementa el tema de las votaciones, tambien es un CQRS independiente, con su propia interfaz y repositorio, recuerda que esto va relacionado a una pregunta de una asamblea
+
+
+Ahora crea una implementacion de un token JWT con claims, los cuales incluyan: id de usuario y id de la propiedad
+
+
+
+
+Ahora añade el bearer token al swagger, que solo se deba añadir el token y el bearer se añada por defecto
+
+
+
+
+Ahora crea los cqrs y el controlador para crear las preguntas para una asamblea
+
+
+
+
+Ahora crea el cqrs para agregar las opciones de las preguntas "question_option" y el controlador
+
+
+
+Ahora en los queries de los cqrs, agrega consultas "Get" basicas en cada cqrs
+
+
+En el registro de los usuarios, añade que en el momento del registro, se registre tambien el property id al que pertenece el usuario
+
+
+Ahora crea un servicio que extraiga el property id del token para usarlo en los controladores, sin que el cliente tenga que enviarlo, recuerda mantener el codigo simple y corto
+
+
+
+
+Verifica que al usuario hacer el login, se este haciendo correctamente, es decir todo el proceso con la contraseña hasheada y todo el proceso de login correctamente
+
+
+
+
+var assembly = new Assembly( propertyId, scheduledStatusId, data.Title, createdByUserId );
+No crees una nueva entidad, utiliza la propiedad: public Assembly(Guid propertyId, Guid assemblyStatusId, string title, Guid createdByUserId) { if (propertyId == Guid.Empty) throw new DomainException("La propiedad es requerida");
+    if (assemblyStatusId == Guid.Empty)
+        throw new DomainException("El estado es requerido");
+
+    if (string.IsNullOrWhiteSpace(title))
+        throw new DomainException("El título es requerido");
+
+    if (createdByUserId == Guid.Empty)
+        throw new DomainException("El usuario creador es requerido");
+
+    PropertyId = propertyId;
+    AssemblyStatusId = assemblyStatusId;
+    Title = title;
+    CreatedByUserId = createdByUserId;
+    CreatedAt = DateTime.UtcNow;
+}
+Y en todos los handlers asegurate de usar los metodos definidos en las entidades
+
+
+
+
+
+
+
+
+
+
+
+
+
+
