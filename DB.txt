@@ -1,0 +1,199 @@
+-- ============================================================================
+-- EXTENSIÓN PARA UUID
+-- ============================================================================
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- ============================================================================
+-- TABLAS MAESTRAS
+-- ============================================================================
+
+-- Estados posibles de una asamblea: Scheduled, InProgress, Closed, etc.
+CREATE TABLE assembly_statuses (
+    id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    code        VARCHAR(50)  NOT NULL UNIQUE,  -- p.ej. SCHEDULED, IN_PROGRESS, CLOSED
+    name        VARCHAR(100) NOT NULL,
+    description VARCHAR(255)
+);
+
+-- Estados posibles de una pregunta de asamblea: Planned, InProgress, Closed, etc.
+CREATE TABLE question_statuses (
+    id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    code        VARCHAR(50)  NOT NULL UNIQUE,  -- p.ej. PLANNED, IN_PROGRESS, CLOSED
+    name        VARCHAR(100) NOT NULL,
+    description VARCHAR(255)
+);
+
+-- Tipos de voto: inicio asamblea, pregunta normal, desempate, etc.
+CREATE TABLE vote_types (
+    id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    code        VARCHAR(50)  NOT NULL UNIQUE,  -- p.ej. START_ASSEMBLY, QUESTION, TIE_BREAK
+    name        VARCHAR(100) NOT NULL,
+    description VARCHAR(255)
+);
+
+-- Métodos de confirmación de participantes: presencial, token, firma, etc.
+CREATE TABLE confirmation_methods (
+    id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    code        VARCHAR(50)  NOT NULL UNIQUE,  -- p.ej. PRESENTIAL, TOKEN, DIGITAL_SIGN
+    name        VARCHAR(100) NOT NULL,
+    description VARCHAR(255)
+);
+
+-- ============================================================================
+-- TABLAS BÁSICAS
+-- ============================================================================
+
+-- Usuarios del sistema
+CREATE TABLE users (
+    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    username        VARCHAR(50)  NOT NULL UNIQUE,
+    email           VARCHAR(255) UNIQUE,
+    password_hash   VARCHAR(255) NOT NULL,
+    is_active       BOOLEAN      NOT NULL DEFAULT TRUE,
+    created_at      TIMESTAMPTZ  NOT NULL,
+    last_login_at   TIMESTAMPTZ
+);
+
+-- Propiedades / conjuntos (simple, para FK de assemblies)
+CREATE TABLE properties (
+    id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name        VARCHAR(200) NOT NULL
+);
+
+-- Asambleas
+CREATE TABLE assemblies (
+    id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    property_id         UUID         NOT NULL,
+    assembly_status_id  UUID         NOT NULL,
+    title               VARCHAR(200) NOT NULL,
+    description         VARCHAR(2000),
+    rules               VARCHAR(2000),
+    start_date_planned  TIMESTAMPTZ,
+    end_date_planned    TIMESTAMPTZ,
+    start_date_actual   TIMESTAMPTZ,
+    end_date_actual     TIMESTAMPTZ,
+    created_by_user_id  UUID         NOT NULL,
+    created_at          TIMESTAMPTZ  NOT NULL,
+
+    CONSTRAINT fk_assemblies_property
+        FOREIGN KEY (property_id) REFERENCES properties (id),
+    CONSTRAINT fk_assemblies_created_by_user
+        FOREIGN KEY (created_by_user_id) REFERENCES users (id),
+    CONSTRAINT fk_assemblies_status
+        FOREIGN KEY (assembly_status_id) REFERENCES assembly_statuses (id)
+);
+
+-- Participantes de la asamblea (usuarios asignados)
+CREATE TABLE assembly_participants (
+    id                          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    assembly_id                 UUID    NOT NULL,
+    user_id                     UUID    NOT NULL,
+    is_voting_member            BOOLEAN NOT NULL DEFAULT TRUE,
+    can_vote_to_start_assembly  BOOLEAN NOT NULL DEFAULT FALSE,
+    is_administrator            BOOLEAN NOT NULL DEFAULT FALSE,
+    is_active                   BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at                  TIMESTAMPTZ NOT NULL,
+
+    CONSTRAINT fk_participants_assembly
+        FOREIGN KEY (assembly_id) REFERENCES assemblies (id),
+    CONSTRAINT fk_participants_user
+        FOREIGN KEY (user_id) REFERENCES users (id),
+    CONSTRAINT uq_participants_assembly_user
+        UNIQUE (assembly_id, user_id)
+);
+
+-- Participantes confirmados (solo estos pueden votar)
+CREATE TABLE assembly_confirmed_participants (
+    id                    UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    assembly_id           UUID         NOT NULL,
+    participant_id        UUID         NOT NULL,
+    confirmed_at          TIMESTAMPTZ  NOT NULL,
+    confirmed_by_user_id  UUID,
+    confirmation_method_id UUID        NOT NULL,
+
+    CONSTRAINT fk_confirmed_assembly
+        FOREIGN KEY (assembly_id) REFERENCES assemblies (id),
+    CONSTRAINT fk_confirmed_participant
+        FOREIGN KEY (participant_id) REFERENCES assembly_participants (id),
+    CONSTRAINT fk_confirmed_by_user
+        FOREIGN KEY (confirmed_by_user_id) REFERENCES users (id),
+    CONSTRAINT fk_confirmed_method
+        FOREIGN KEY (confirmation_method_id) REFERENCES confirmation_methods (id),
+    CONSTRAINT uq_confirmed_assembly_participant
+        UNIQUE (assembly_id, participant_id)
+);
+
+-- Preguntas de asamblea (antes "topics")
+CREATE TABLE assembly_questions (
+    id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    assembly_id          UUID          NOT NULL,
+    question_status_id   UUID          NOT NULL,
+    title                VARCHAR(200)  NOT NULL,
+    description          VARCHAR(2000),
+    order_index          INT           NOT NULL,
+    start_date           TIMESTAMPTZ,
+    end_date             TIMESTAMPTZ,
+    created_at           TIMESTAMPTZ   NOT NULL,
+    created_by_user_id   UUID          NOT NULL,
+
+    CONSTRAINT fk_questions_assembly
+        FOREIGN KEY (assembly_id) REFERENCES assemblies (id),
+    CONSTRAINT fk_questions_created_by_user
+        FOREIGN KEY (created_by_user_id) REFERENCES users (id),
+    CONSTRAINT fk_questions_status
+        FOREIGN KEY (question_status_id) REFERENCES question_statuses (id)
+);
+
+-- Opciones de cada pregunta (Sí / No / etc.)
+CREATE TABLE assembly_question_options (
+    id           UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    question_id  UUID         NOT NULL,
+    text         VARCHAR(200) NOT NULL,
+    value        VARCHAR(50),
+    order_index  INT          NOT NULL,
+    is_active    BOOLEAN      NOT NULL DEFAULT TRUE,
+
+    CONSTRAINT fk_options_question
+        FOREIGN KEY (question_id) REFERENCES assembly_questions (id)
+);
+
+-- Votos (inicio de asamblea, preguntas normales y desempate)
+CREATE TABLE assembly_votes (
+    id                          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    assembly_id                 UUID        NOT NULL,
+    question_id                 UUID,
+    option_id                   UUID,
+    confirmed_participant_id    UUID        NOT NULL,
+    vote_type_id                UUID        NOT NULL,
+    created_at                  TIMESTAMPTZ NOT NULL,
+
+    CONSTRAINT fk_votes_assembly
+        FOREIGN KEY (assembly_id) REFERENCES assemblies (id),
+    CONSTRAINT fk_votes_question
+        FOREIGN KEY (question_id) REFERENCES assembly_questions (id),
+    CONSTRAINT fk_votes_option
+        FOREIGN KEY (option_id) REFERENCES assembly_question_options (id),
+    CONSTRAINT fk_votes_confirmed_participant
+        FOREIGN KEY (confirmed_participant_id) REFERENCES assembly_confirmed_participants (id),
+    CONSTRAINT fk_votes_type
+        FOREIGN KEY (vote_type_id) REFERENCES vote_types (id)
+);
+
+-- Resultados finales (totales de votos por opción de cada pregunta)
+CREATE TABLE assembly_question_results (
+    id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    assembly_id       UUID         NOT NULL,
+    question_id       UUID         NOT NULL,
+    option_id         UUID         NOT NULL,
+    votes_count       INT          NOT NULL,
+    is_winning_option BOOLEAN      NOT NULL DEFAULT FALSE,
+    is_tie            BOOLEAN      NOT NULL DEFAULT FALSE,
+    calculated_at     TIMESTAMPTZ  NOT NULL,
+
+    CONSTRAINT fk_results_assembly
+        FOREIGN KEY (assembly_id) REFERENCES assemblies (id),
+    CONSTRAINT fk_results_question
+        FOREIGN KEY (question_id) REFERENCES assembly_questions (id),
+    CONSTRAINT fk_results_option
+        FOREIGN KEY (option_id) REFERENCES assembly_question_options (id)
+);
