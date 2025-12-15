@@ -17,7 +17,10 @@ public class AssemblyVoteConfiguration : IEntityTypeConfiguration<AssemblyVote>
         builder.Property(v => v.QuestionId).HasColumnName("question_id");
         builder.Property(v => v.OptionId).HasColumnName("option_id");
         builder.Property(v => v.ConfirmedParticipantId).HasColumnName("confirmed_participant_id").IsRequired();
-        builder.Property(v => v.VoteTypeId).HasColumnName("vote_type_id").IsRequired();
+        builder.Property(v => v.VoteTypeId)
+            .HasColumnName("vote_type_id")
+            .HasMaxLength(10)
+            .IsRequired();
         builder.Property(v => v.CreatedAt).HasColumnName("created_at").IsRequired();
 
         builder.HasOne<Assembly>()

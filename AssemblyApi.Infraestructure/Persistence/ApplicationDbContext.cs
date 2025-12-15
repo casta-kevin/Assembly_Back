@@ -22,6 +22,8 @@ public class ApplicationDbContext : DbContext
     public DbSet<QuestionStatus> QuestionStatuses { get; set; }
     public DbSet<VoteType> VoteTypes { get; set; }
     public DbSet<ConfirmationMethod> ConfirmationMethods { get; set; }
+    public DbSet<Role> Roles { get; set; }
+    public DbSet<QuestionSource> QuestionSources { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

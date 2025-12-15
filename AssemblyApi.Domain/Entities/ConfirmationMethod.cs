@@ -4,21 +4,24 @@ namespace AssemblyApi.Domain.Entities;
 
 public class ConfirmationMethod : Entity
 {
-    public string Code { get; private set; } = string.Empty;
+    public string Id { get; private set; } = string.Empty;
     public string Name { get; private set; } = string.Empty;
     public string? Description { get; private set; }
 
     private ConfirmationMethod() { }
 
-    public ConfirmationMethod(string code, string name, string? description = null)
+    public ConfirmationMethod(string id, string name, string? description = null)
     {
-        if (string.IsNullOrWhiteSpace(code))
-            throw new ArgumentException("El código no puede estar vacío");
+        if (string.IsNullOrWhiteSpace(id))
+            throw new ArgumentException("El identificador es requerido");
+
+        if (id.Length > 10)
+            throw new ArgumentException("El identificador no puede superar 10 caracteres");
 
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("El nombre no puede estar vacío");
 
-        Code = code;
+        Id = id;
         Name = name;
         Description = description;
     }

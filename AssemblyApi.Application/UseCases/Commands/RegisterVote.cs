@@ -3,4 +3,4 @@ using MediatR;
 
 namespace AssemblyApi.Application.UseCases.Commands;
 
-public record RegisterVote(RegisterVoteDto Data) : IRequest<Guid>;
+public record RegisterVote(RegisterVoteDto Data) : IRequest<ApiResponse<Guid>>;

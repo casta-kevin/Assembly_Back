@@ -3,4 +3,4 @@ using MediatR;
 
 namespace AssemblyApi.Application.UseCases.Commands;
 
-public record AddQuestionToAssembly(AddQuestionToAssemblyDto Data) : IRequest<Guid>;
+public record AddQuestionToAssembly(AddQuestionToAssemblyDto Data) : IRequest<ApiResponse<Guid>>;

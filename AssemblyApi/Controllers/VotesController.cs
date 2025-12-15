@@ -19,10 +19,13 @@ public class VotesController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<ActionResult<Guid>> RegisterVote([FromBody] RegisterVoteDto dto, CancellationToken cancellationToken)
+    public async Task<ActionResult<ApiResponse<Guid>>> RegisterVote([FromBody] RegisterVoteDto dto, CancellationToken cancellationToken)
     {
-        var command = new RegisterVote(dto);
-        var voteId = await _mediator.Send(command, cancellationToken);
-        return CreatedAtAction(nameof(RegisterVote), new { id = voteId }, voteId);
+        var result = await _mediator.Send(new RegisterVote(dto), cancellationToken);
+
+        if (!result.Success)
+            return BadRequest(result);
+
+        return CreatedAtAction(nameof(RegisterVote), new { id = result.Data }, result);
     }
 }

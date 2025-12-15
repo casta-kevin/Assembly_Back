@@ -4,7 +4,7 @@ using MediatR;
 
 namespace AssemblyApi.Application.UseCases.Queries.Handlers;
 
-public class GetQuestionsByAssemblyIdHandler : IRequestHandler<GetQuestionsByAssemblyId, List<QuestionDto>>
+public class GetQuestionsByAssemblyIdHandler : IRequestHandler<GetQuestionsByAssemblyId, ApiResponse<List<QuestionDto>>>
 {
     private readonly IQuestionRepository _questionRepository;
 
@@ -13,25 +13,35 @@ public class GetQuestionsByAssemblyIdHandler : IRequestHandler<GetQuestionsByAss
         _questionRepository = questionRepository;
     }
 
-    public async Task<List<QuestionDto>> Handle(GetQuestionsByAssemblyId request, CancellationToken cancellationToken)
+    public async Task<ApiResponse<List<QuestionDto>>> Handle(GetQuestionsByAssemblyId request, CancellationToken cancellationToken)
     {
-        var questions = await _questionRepository.GetByAssemblyIdAsync(request.AssemblyId, cancellationToken);
-        
-        return questions.Select(q => new QuestionDto
+        try
         {
-            Id = q.Id,
-            AssemblyId = q.AssemblyId,
-            Title = q.Title,
-            Description = q.Description,
-            OrderIndex = q.OrderIndex,
-            StartDate = q.StartDate,
-            EndDate = q.EndDate,
-            Options = q.Options.Select(o => new QuestionOptionDto
+            var questions = await _questionRepository.GetByAssemblyIdAsync(request.AssemblyId, cancellationToken);
+
+            var dto = questions.Select(q => new QuestionDto
             {
-                Id = o.Id,
-                Text = o.Text,
-                OrderIndex = o.OrderIndex
-            }).ToList()
-        }).ToList();
+                Id = q.Id,
+                AssemblyId = q.AssemblyId,
+                Title = q.Title,
+                Description = q.Description,
+                QuestionSourceId = q.QuestionSourceId,
+                QuestionStatusId = q.QuestionStatusId,
+                OrderIndex = q.OrderIndex,
+                StartDate = q.StartDate,
+                EndDate = q.EndDate,
+                Options = q.Options.Select(o => new QuestionOptionDto
+                {
+                    Id = o.Id,
+                    Text = o.Text
+                }).ToList()
+            }).OrderBy(q => q.OrderIndex).ToList();
+
+            return ApiResponse<List<QuestionDto>>.SuccessResponse(dto);
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<List<QuestionDto>>.FailureResponse("Error al obtener las preguntas", new[] { ex.Message });
+        }
     }
 }

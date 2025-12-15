@@ -16,7 +16,6 @@ public class AssemblyQuestionOptionConfiguration : IEntityTypeConfiguration<Asse
         builder.Property(o => o.QuestionId).HasColumnName("question_id").IsRequired();
         builder.Property(o => o.Text).HasColumnName("text").HasMaxLength(200).IsRequired();
         builder.Property(o => o.Value).HasColumnName("value").HasMaxLength(50);
-        builder.Property(o => o.OrderIndex).HasColumnName("order_index").IsRequired();
         builder.Property(o => o.IsActive).HasColumnName("is_active").IsRequired().HasDefaultValue(true);
 
         builder.HasOne<AssemblyQuestion>()

@@ -16,7 +16,7 @@ public class JwtTokenService : IJwtTokenService
         _configuration = configuration;
     }
 
-    public string GenerateToken(Guid userId, Guid propertyId, string username)
+    public string GenerateToken(Guid userId, Guid propertyId, string username, string roleId)
     {
         var secretKey = _configuration["Jwt:SecretKey"] ?? throw new InvalidOperationException("Jwt:SecretKey no configurado");
         var issuer = _configuration["Jwt:Issuer"] ?? throw new InvalidOperationException("Jwt:Issuer no configurado");
@@ -32,6 +32,8 @@ public class JwtTokenService : IJwtTokenService
             new Claim(JwtRegisteredClaimNames.Name, username),
             new Claim("UserId", userId.ToString()),
             new Claim("PropertyId", propertyId.ToString()),
+            new Claim(ClaimTypes.Role, roleId),
+            new Claim("RoleId", roleId),
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         };
 

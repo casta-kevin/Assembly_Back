@@ -6,4 +6,5 @@ public record RegisterUserResponseDto
     public string Username { get; init; } = string.Empty;
     public string Email { get; init; } = string.Empty;
     public Guid PropertyId { get; init; }
+    public string RoleId { get; init; } = string.Empty;
 }

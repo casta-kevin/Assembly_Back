@@ -11,12 +11,18 @@ public class AssemblyStatusConfiguration : IEntityTypeConfiguration<AssemblyStat
         builder.ToTable("assembly_statuses");
 
         builder.HasKey(s => s.Id);
-        builder.Property(s => s.Id).HasColumnName("id");
+        builder.Property(s => s.Id)
+            .HasColumnName("id")
+            .HasMaxLength(10)
+            .IsRequired();
 
-        builder.Property(s => s.Code).HasColumnName("code").HasMaxLength(50).IsRequired();
-        builder.HasIndex(s => s.Code).IsUnique();
+        builder.Property(s => s.Name)
+            .HasColumnName("name")
+            .HasMaxLength(100)
+            .IsRequired();
 
-        builder.Property(s => s.Name).HasColumnName("name").HasMaxLength(100).IsRequired();
-        builder.Property(s => s.Description).HasColumnName("description").HasMaxLength(255);
+        builder.Property(s => s.Description)
+            .HasColumnName("description")
+            .HasMaxLength(255);
     }
 }

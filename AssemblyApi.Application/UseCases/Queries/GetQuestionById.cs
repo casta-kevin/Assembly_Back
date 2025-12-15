@@ -3,4 +3,4 @@ using MediatR;
 
 namespace AssemblyApi.Application.UseCases.Queries;
 
-public record GetQuestionById(Guid Id) : IRequest<QuestionDto?>;
+public record GetQuestionById(Guid Id) : IRequest<ApiResponse<QuestionDto?>>;

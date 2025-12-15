@@ -1,4 +1,5 @@
 using AssemblyApi.Application.Repositories;
+using AssemblyApi.Domain.Entities;
 using AssemblyApi.Infraestructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -13,11 +14,9 @@ public class VoteTypeRepository : IVoteTypeRepository
         _context = context;
     }
 
-    public async Task<Guid> GetByCodeAsync(string code, CancellationToken cancellationToken = default)
+    public async Task<VoteType?> GetByIdAsync(string id, CancellationToken cancellationToken = default)
     {
-        var voteType = await _context.VoteTypes
-            .FirstOrDefaultAsync(v => v.Code == code, cancellationToken);
-
-        return voteType?.Id ?? Guid.Empty;
+        return await _context.VoteTypes
+            .FirstOrDefaultAsync(v => v.Id == id, cancellationToken);
     }
 }

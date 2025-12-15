@@ -1,11 +1,13 @@
-﻿using AssemblyApi.Application.Repositories;
+﻿using AssemblyApi.Application.Constants;
+using AssemblyApi.Application.DTOs;
+using AssemblyApi.Application.Repositories;
 using AssemblyApi.Application.Services;
 using AssemblyApi.Domain.Entities;
 using MediatR;
 
 namespace AssemblyApi.Application.UseCases.Commands.Handlers;
 
-public class CreateAssemblyHandler : IRequestHandler<CreateAssembly, Guid>
+public class CreateAssemblyHandler : IRequestHandler<CreateAssembly, ApiResponse<Guid>>
 {
     private readonly IAssemblyRepository _assemblyRepository;
     private readonly IAssemblyStatusRepository _statusRepository;
@@ -24,29 +26,38 @@ public class CreateAssemblyHandler : IRequestHandler<CreateAssembly, Guid>
         _unitOfWork = unitOfWork;
     }
 
-    public async Task<Guid> Handle(CreateAssembly request, CancellationToken cancellationToken)
+    public async Task<ApiResponse<Guid>> Handle(CreateAssembly request, CancellationToken cancellationToken)
     {
-        var data = request.Data;
-        var propertyId = _currentUserService.GetPropertyId();
-        var createdByUserId = _currentUserService.GetUserId();
-
-        var scheduledStatusId = await _statusRepository.GetByCodeAsync("SCHEDULED", cancellationToken);
-
-        var assembly = new Assembly(propertyId, scheduledStatusId, data.Title, createdByUserId);
-
-        if (!string.IsNullOrWhiteSpace(data.Description) || !string.IsNullOrWhiteSpace(data.Rules))
+        try
         {
-            assembly.UpdateDetails(data.Title, data.Description, data.Rules);
-        }
+            var data = request.Data;
+            var propertyId = _currentUserService.GetPropertyId();
+            var createdByUserId = _currentUserService.GetUserId();
 
-        if (data.StartDatePlanned.HasValue && data.EndDatePlanned.HasValue)
+            var draftStatus = await _statusRepository.GetByIdAsync(AssemblyStatusIds.Draft, cancellationToken);
+            if (draftStatus is null)
+                return ApiResponse<Guid>.FailureResponse("El estado 'DRFT' no esta configurado");
+
+            var assembly = new Assembly(propertyId, draftStatus.Id, data.Title, createdByUserId);
+
+            if (!string.IsNullOrWhiteSpace(data.Description) || !string.IsNullOrWhiteSpace(data.Rules))
+            {
+                assembly.UpdateDetails(data.Title, data.Description, data.Rules);
+            }
+
+            if (data.StartDatePlanned.HasValue && data.EndDatePlanned.HasValue)
+            {
+                assembly.ScheduleDates(data.StartDatePlanned.Value, data.EndDatePlanned.Value);
+            }
+
+            await _assemblyRepository.AddAsync(assembly, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            return ApiResponse<Guid>.SuccessResponse(assembly.Id, "Asamblea creada correctamente");
+        }
+        catch (Exception ex)
         {
-            assembly.ScheduleDates(data.StartDatePlanned.Value, data.EndDatePlanned.Value);
+            return ApiResponse<Guid>.FailureResponse(ex.Message);
         }
-
-        await _assemblyRepository.AddAsync(assembly, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
-
-        return assembly.Id;
     }
 }

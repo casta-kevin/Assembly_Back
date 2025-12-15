@@ -1,10 +1,12 @@
+using AssemblyApi.Application.Constants;
+using AssemblyApi.Application.DTOs;
 using AssemblyApi.Application.Repositories;
 using AssemblyApi.Application.Services;
 using MediatR;
 
 namespace AssemblyApi.Application.UseCases.Commands.Handlers;
 
-public class AddQuestionToAssemblyHandler : IRequestHandler<AddQuestionToAssembly, Guid>
+public class AddQuestionToAssemblyHandler : IRequestHandler<AddQuestionToAssembly, ApiResponse<Guid>>
 {
     private readonly IAssemblyRepository _assemblyRepository;
     private readonly IQuestionStatusRepository _questionStatusRepository;
@@ -23,46 +25,50 @@ public class AddQuestionToAssemblyHandler : IRequestHandler<AddQuestionToAssembl
         _unitOfWork = unitOfWork;
     }
 
-    public async Task<Guid> Handle(AddQuestionToAssembly request, CancellationToken cancellationToken)
+    public async Task<ApiResponse<Guid>> Handle(AddQuestionToAssembly request, CancellationToken cancellationToken)
     {
-        var data = request.Data;
-        var createdByUserId = _currentUserService.GetUserId();
-
-        var assembly = await _assemblyRepository.GetByIdAsync(data.AssemblyId, cancellationToken);
-        
-        if (assembly == null)
-            throw new InvalidOperationException("La asamblea no existe");
-
-        var plannedStatusId = await _questionStatusRepository.GetByCodeAsync("PLANNED", cancellationToken);
-
-        assembly.AddQuestion(
-            data.Title,
-            data.OrderIndex,
-            createdByUserId,
-            plannedStatusId
-        );
-
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
-
-        var question = assembly.Questions.First(q => q.OrderIndex == data.OrderIndex);
-
-        if (data.StartDate.HasValue && data.EndDate.HasValue)
+        try
         {
-            question.SetSchedule(data.StartDate.Value, data.EndDate.Value);
-        }
+            var data = request.Data;
+            var createdByUserId = _currentUserService.GetUserId();
 
-        if (!string.IsNullOrWhiteSpace(data.Description))
+            var assembly = await _assemblyRepository.GetByIdAsync(data.AssemblyId, cancellationToken);
+
+            if (assembly == null)
+                return ApiResponse<Guid>.FailureResponse("La asamblea no existe");
+
+            var plannedStatus = await _questionStatusRepository.GetByIdAsync(QuestionStatusIds.Planned, cancellationToken);
+            if (plannedStatus is null)
+                return ApiResponse<Guid>.FailureResponse("El estado 'PLND' no esta configurado");
+
+            var sourceId = string.IsNullOrWhiteSpace(data.QuestionSourceId)
+                ? QuestionSourceIds.Agenda
+                : data.QuestionSourceId.Trim().ToUpperInvariant();
+
+            var question = assembly.AddQuestion(data.Title, createdByUserId, plannedStatus.Id, sourceId, data.OrderIndex);
+
+            if (data.StartDate.HasValue && data.EndDate.HasValue)
+            {
+                question.SetSchedule(data.StartDate.Value, data.EndDate.Value);
+            }
+
+            if (!string.IsNullOrWhiteSpace(data.Description))
+            {
+                question.UpdateDescription(data.Description);
+            }
+
+            foreach (var optionDto in data.Options)
+            {
+                question.AddOption(optionDto.Text);
+            }
+
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            return ApiResponse<Guid>.SuccessResponse(question.Id, "Pregunta agregada correctamente");
+        }
+        catch (Exception ex)
         {
-            question.UpdateDescription(data.Description);
+            return ApiResponse<Guid>.FailureResponse(ex.Message);
         }
-
-        foreach (var optionDto in data.Options)
-        {
-            question.AddOption(optionDto.Text, optionDto.OrderIndex);
-        }
-
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
-
-        return question.Id;
     }
 }

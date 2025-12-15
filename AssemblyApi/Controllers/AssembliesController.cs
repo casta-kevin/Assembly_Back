@@ -20,33 +20,38 @@ public class AssembliesController : ControllerBase
     }
 
     [HttpGet("{id}")]
-    public async Task<ActionResult<AssemblyDto>> GetById(Guid id, CancellationToken cancellationToken)
+    public async Task<ActionResult<ApiResponse<AssemblyDto?>>> GetById(Guid id, CancellationToken cancellationToken)
     {
-        var query = new GetAssemblyById(id);
-        var assembly = await _mediator.Send(query, cancellationToken);
+        var result = await _mediator.Send(new GetAssemblyById(id), cancellationToken);
 
-        if (assembly == null)
-            return NotFound();
+        if (!result.Success)
+            return NotFound(result);
 
-        return Ok(assembly);
+        return Ok(result);
     }
 
     [HttpPost]
-    public async Task<ActionResult<Guid>> Create([FromBody] CreateAssemblyDto dto, CancellationToken cancellationToken)
+    public async Task<ActionResult<ApiResponse<Guid>>> Create([FromBody] CreateAssemblyDto dto, CancellationToken cancellationToken)
     {
-        var command = new CreateAssembly(dto);
-        var assemblyId = await _mediator.Send(command, cancellationToken);
-        return CreatedAtAction(nameof(GetById), new { id = assemblyId }, assemblyId);
+        var result = await _mediator.Send(new CreateAssembly(dto), cancellationToken);
+
+        if (!result.Success)
+            return BadRequest(result);
+
+        return CreatedAtAction(nameof(GetById), new { id = result.Data }, result);
     }
 
     [HttpPost("{assemblyId}/participants")]
-    public async Task<ActionResult<Guid>> AddParticipant(Guid assemblyId, [FromBody] AddParticipantToAssemblyDto dto, CancellationToken cancellationToken)
+    public async Task<ActionResult<ApiResponse<Guid>>> AddParticipant(Guid assemblyId, [FromBody] AddParticipantToAssemblyDto dto, CancellationToken cancellationToken)
     {
         if (assemblyId != dto.AssemblyId)
-            return BadRequest("El ID de la asamblea no coincide");
+            return BadRequest(ApiResponse<Guid>.FailureResponse("El ID de la asamblea no coincide"));
 
-        var command = new AddParticipantToAssembly(dto);
-        var participantId = await _mediator.Send(command, cancellationToken);
-        return CreatedAtAction(nameof(AddParticipant), new { assemblyId, participantId }, participantId);
+        var result = await _mediator.Send(new AddParticipantToAssembly(dto), cancellationToken);
+
+        if (!result.Success)
+            return BadRequest(result);
+
+        return CreatedAtAction(nameof(AddParticipant), new { assemblyId, participantId = result.Data }, result);
     }
 }

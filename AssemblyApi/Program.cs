@@ -30,14 +30,23 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 
 builder.Services.AddAuthorization();
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowExternalClients", policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
-    options.SwaggerDoc("v1", new OpenApiInfo 
-    { 
-        Title = "Assembly API", 
-        Version = "v1" 
+    options.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "Assembly API",
+        Version = "v1"
     });
 
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
@@ -60,7 +69,7 @@ builder.Services.AddSwaggerGen(options =>
                     Id = "Bearer"
                 }
             },
-            new string[] {}
+            Array.Empty<string>()
         }
     });
 });
@@ -68,13 +77,17 @@ builder.Services.AddSwaggerGen(options =>
 var app = builder.Build();
 
 app.UseSwagger();
-app.UseSwaggerUI(c =>
-{
-    c.SwaggerEndpoint("/swagger/v1/swagger.json", "Assembly API v1");
-    c.RoutePrefix = string.Empty;
-});
+
+
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "Assembly API v1");
+        c.RoutePrefix = "swagger";
+    });
+
 
 app.UseHttpsRedirection();
+app.UseCors("AllowExternalClients");
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

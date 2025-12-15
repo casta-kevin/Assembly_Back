@@ -1,4 +1,5 @@
 using AssemblyApi.Application.Repositories;
+using AssemblyApi.Domain.Entities;
 using AssemblyApi.Infraestructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -13,11 +14,9 @@ public class QuestionStatusRepository : IQuestionStatusRepository
         _context = context;
     }
 
-    public async Task<Guid> GetByCodeAsync(string code, CancellationToken cancellationToken = default)
+    public async Task<QuestionStatus?> GetByIdAsync(string id, CancellationToken cancellationToken = default)
     {
-        var status = await _context.QuestionStatuses
-            .FirstOrDefaultAsync(s => s.Code == code, cancellationToken);
-
-        return status?.Id ?? Guid.Empty;
+        return await _context.QuestionStatuses
+            .FirstOrDefaultAsync(s => s.Id == id, cancellationToken);
     }
 }

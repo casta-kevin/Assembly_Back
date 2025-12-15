@@ -2,23 +2,26 @@ using AssemblyApi.Domain.Common;
 
 namespace AssemblyApi.Domain.Entities;
 
-public class VoteType : Entity
+public class VoteType
 {
-    public string Code { get; private set; } = string.Empty;
+    public string Id { get; private set; } = string.Empty;
     public string Name { get; private set; } = string.Empty;
     public string? Description { get; private set; }
 
     private VoteType() { }
 
-    public VoteType(string code, string name, string? description = null)
+    public VoteType(string id, string name, string? description = null)
     {
-        if (string.IsNullOrWhiteSpace(code))
-            throw new ArgumentException("El código no puede estar vacío");
+        if (string.IsNullOrWhiteSpace(id))
+            throw new ArgumentException("El identificador es requerido");
+
+        if (id.Length > 10)
+            throw new ArgumentException("El identificador no puede superar 10 caracteres");
 
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("El nombre no puede estar vacío");
 
-        Code = code;
+        Id = id;
         Name = name;
         Description = description;
     }

@@ -19,19 +19,25 @@ public class AuthController : ControllerBase
 
     [HttpPost("register")]
     [AllowAnonymous]
-    public async Task<ActionResult<RegisterUserResponseDto>> Register([FromBody] RegisterUserDto dto, CancellationToken cancellationToken)
+    public async Task<ActionResult<ApiResponse<RegisterUserResponseDto>>> Register([FromBody] RegisterUserDto dto, CancellationToken cancellationToken)
     {
-        var command = new RegisterUser(dto);
-        var response = await _mediator.Send(command, cancellationToken);
-        return CreatedAtAction(nameof(Register), new { id = response.UserId }, response);
+        var result = await _mediator.Send(new RegisterUser(dto), cancellationToken);
+
+        if (!result.Success)
+            return BadRequest(result);
+
+        return CreatedAtAction(nameof(Register), new { id = result.Data?.UserId }, result);
     }
 
     [HttpPost("login")]
     [AllowAnonymous]
-    public async Task<ActionResult<LoginResponseDto>> Login([FromBody] LoginDto dto, CancellationToken cancellationToken)
+    public async Task<ActionResult<ApiResponse<LoginResponseDto>>> Login([FromBody] LoginDto dto, CancellationToken cancellationToken)
     {
-        var command = new Login(dto);
-        var response = await _mediator.Send(command, cancellationToken);
-        return Ok(response);
+        var result = await _mediator.Send(new Login(dto), cancellationToken);
+
+        if (!result.Success)
+            return Unauthorized(result);
+
+        return Ok(result);
     }
 }

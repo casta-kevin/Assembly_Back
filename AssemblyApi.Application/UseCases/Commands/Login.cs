@@ -3,4 +3,4 @@ using MediatR;
 
 namespace AssemblyApi.Application.UseCases.Commands;
 
-public record Login(LoginDto Data) : IRequest<LoginResponseDto>;
+public record Login(LoginDto Data) : IRequest<ApiResponse<LoginResponseDto>>;

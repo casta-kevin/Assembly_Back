@@ -11,12 +11,18 @@ public class ConfirmationMethodConfiguration : IEntityTypeConfiguration<Confirma
         builder.ToTable("confirmation_methods");
 
         builder.HasKey(c => c.Id);
-        builder.Property(c => c.Id).HasColumnName("id");
+        builder.Property(c => c.Id)
+            .HasColumnName("id")
+            .HasMaxLength(10)
+            .IsRequired();
 
-        builder.Property(c => c.Code).HasColumnName("code").HasMaxLength(50).IsRequired();
-        builder.HasIndex(c => c.Code).IsUnique();
+        builder.Property(c => c.Name)
+            .HasColumnName("name")
+            .HasMaxLength(100)
+            .IsRequired();
 
-        builder.Property(c => c.Name).HasColumnName("name").HasMaxLength(100).IsRequired();
-        builder.Property(c => c.Description).HasColumnName("description").HasMaxLength(255);
+        builder.Property(c => c.Description)
+            .HasColumnName("description")
+            .HasMaxLength(255);
     }
 }

@@ -14,7 +14,10 @@ public class AssemblyConfiguration : IEntityTypeConfiguration<Assembly>
         builder.Property(a => a.Id).HasColumnName("id");
 
         builder.Property(a => a.PropertyId).HasColumnName("property_id").IsRequired();
-        builder.Property(a => a.AssemblyStatusId).HasColumnName("assembly_status_id").IsRequired();
+        builder.Property(a => a.AssemblyStatusId)
+            .HasColumnName("assembly_status_id")
+            .HasMaxLength(10)
+            .IsRequired();
         builder.Property(a => a.Title).HasColumnName("title").HasMaxLength(200).IsRequired();
         builder.Property(a => a.Description).HasColumnName("description").HasMaxLength(2000);
         builder.Property(a => a.Rules).HasColumnName("rules").HasMaxLength(2000);

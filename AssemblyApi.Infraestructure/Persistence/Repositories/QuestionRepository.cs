@@ -32,7 +32,10 @@ public class QuestionRepository : IQuestionRepository
         var status = await _context.QuestionStatuses
             .FirstOrDefaultAsync(s => s.Id == question.QuestionStatusId, cancellationToken);
 
-        return status?.Code == "IN_PROGRESS" || status?.Code == "PLANNED";
+        if (status == null)
+            return false;
+
+        return status.Id is "INPR" or "PLND";
     }
 
     public async Task<List<AssemblyQuestion>> GetByAssemblyIdAsync(Guid assemblyId, CancellationToken cancellationToken = default)
@@ -41,6 +44,7 @@ public class QuestionRepository : IQuestionRepository
             .Include("_options")
             .Where(q => q.AssemblyId == assemblyId)
             .OrderBy(q => q.OrderIndex)
+            .ThenBy(q => q.CreatedAt)
             .ToListAsync(cancellationToken);
     }
 }

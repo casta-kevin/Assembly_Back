@@ -9,7 +9,7 @@ public class Assembly : Entity
     private readonly List<AssemblyQuestion> _questions = new();
 
     public Guid PropertyId { get; private set; }
-    public Guid AssemblyStatusId { get; private set; }
+    public string AssemblyStatusId { get; private set; } = string.Empty;
     public string Title { get; private set; } = string.Empty;
     public string? Description { get; private set; }
     public string? Rules { get; private set; }
@@ -25,16 +25,16 @@ public class Assembly : Entity
 
     private Assembly() { }
 
-    public Assembly(Guid propertyId, Guid assemblyStatusId, string title, Guid createdByUserId)
+    public Assembly(Guid propertyId, string assemblyStatusId, string title, Guid createdByUserId)
     {
         if (propertyId == Guid.Empty)
             throw new DomainException("La propiedad es requerida");
 
-        if (assemblyStatusId == Guid.Empty)
+        if (string.IsNullOrWhiteSpace(assemblyStatusId))
             throw new DomainException("El estado es requerido");
 
         if (string.IsNullOrWhiteSpace(title))
-            throw new DomainException("El título es requerido");
+            throw new DomainException("El titulo es requerido");
 
         if (createdByUserId == Guid.Empty)
             throw new DomainException("El usuario creador es requerido");
@@ -49,7 +49,7 @@ public class Assembly : Entity
     public void UpdateDetails(string title, string? description, string? rules)
     {
         if (string.IsNullOrWhiteSpace(title))
-            throw new DomainException("El título no puede estar vacío");
+            throw new DomainException("El titulo no puede estar vacio");
 
         Title = title;
         Description = description;
@@ -90,9 +90,9 @@ public class Assembly : Entity
         EndDateActual = DateTime.UtcNow;
     }
 
-    public void ChangeStatus(Guid newStatusId)
+    public void ChangeStatus(string newStatusId)
     {
-        if (newStatusId == Guid.Empty)
+        if (string.IsNullOrWhiteSpace(newStatusId))
             throw new DomainException("El estado es requerido");
 
         AssemblyStatusId = newStatusId;
@@ -104,7 +104,7 @@ public class Assembly : Entity
             throw new DomainException("El usuario es requerido");
 
         if (_participants.Any(p => p.UserId == userId))
-            throw new DomainException("El participante ya está registrado");
+            throw new DomainException("El participante ya esta registrado");
 
         if (StartDateActual.HasValue)
             throw new InvalidAssemblyStateException("No se pueden agregar participantes a una asamblea iniciada");
@@ -125,24 +125,31 @@ public class Assembly : Entity
         _participants.Remove(participant);
     }
 
-    public void AddQuestion(string title, int orderIndex, Guid createdByUserId, Guid questionStatusId)
+    public AssemblyQuestion AddQuestion(string title, Guid createdByUserId, string questionStatusId, string questionSourceId, int? orderIndex = null)
     {
         if (string.IsNullOrWhiteSpace(title))
-            throw new DomainException("El título de la pregunta es requerido");
+            throw new DomainException("El titulo de la pregunta es requerido");
 
-        if (orderIndex < 0)
-            throw new DomainException("El orden debe ser mayor o igual a cero");
+        var nextOrder = orderIndex ?? GetNextQuestionOrder();
 
-        if (_questions.Any(q => q.OrderIndex == orderIndex))
+        if (nextOrder <= 0)
+            throw new DomainException("El orden debe ser mayor a cero");
+
+        if (_questions.Any(q => q.OrderIndex == nextOrder))
             throw new DomainException("Ya existe una pregunta con ese orden");
 
-        var question = new AssemblyQuestion(Id, title, orderIndex, createdByUserId, questionStatusId);
+        var question = new AssemblyQuestion(Id, title, createdByUserId, questionStatusId, questionSourceId, nextOrder);
         _questions.Add(question);
+        return question;
     }
 
+    private int GetNextQuestionOrder() => _questions.Count == 0
+        ? 1
+        : _questions.Max(q => q.OrderIndex) + 1;
+
     public bool IsInProgress() => StartDateActual.HasValue && !EndDateActual.HasValue;
-    
+
     public bool IsClosed() => EndDateActual.HasValue;
-    
+
     public bool IsScheduled() => !StartDateActual.HasValue;
 }

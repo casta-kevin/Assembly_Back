@@ -20,43 +20,44 @@ public class QuestionsController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<List<QuestionDto>>> GetByAssemblyId(Guid assemblyId, CancellationToken cancellationToken)
+    public async Task<ActionResult<ApiResponse<List<QuestionDto>>>> GetByAssemblyId(Guid assemblyId, CancellationToken cancellationToken)
     {
-        var query = new GetQuestionsByAssemblyId(assemblyId);
-        var questions = await _mediator.Send(query, cancellationToken);
-        return Ok(questions);
+        var result = await _mediator.Send(new GetQuestionsByAssemblyId(assemblyId), cancellationToken);
+
+        if (!result.Success)
+            return BadRequest(result);
+
+        return Ok(result);
     }
 
     [HttpGet("{questionId}")]
-    public async Task<ActionResult<QuestionDto>> GetById(Guid assemblyId, Guid questionId, CancellationToken cancellationToken)
+    public async Task<ActionResult<ApiResponse<QuestionDto?>>> GetById(Guid assemblyId, Guid questionId, CancellationToken cancellationToken)
     {
-        var query = new GetQuestionById(questionId);
-        var question = await _mediator.Send(query, cancellationToken);
-        
-        if (question == null)
-            return NotFound();
-        
-        if (question.AssemblyId != assemblyId)
-            return BadRequest("La pregunta no pertenece a esta asamblea");
-        
-        return Ok(question);
+        var result = await _mediator.Send(new GetQuestionById(questionId), cancellationToken);
+
+        if (!result.Success)
+            return NotFound(result);
+
+        if (result.Data?.AssemblyId != assemblyId)
+            return BadRequest(ApiResponse<QuestionDto?>.FailureResponse("La pregunta no pertenece a esta asamblea"));
+
+        return Ok(result);
     }
 
     [HttpPost]
-    public async Task<ActionResult<Guid>> AddQuestion(
-        Guid assemblyId, 
-        [FromBody] AddQuestionToAssemblyDto dto, 
+    public async Task<ActionResult<ApiResponse<Guid>>> AddQuestion(
+        Guid assemblyId,
+        [FromBody] AddQuestionToAssemblyDto dto,
         CancellationToken cancellationToken)
     {
         if (assemblyId != dto.AssemblyId)
-            return BadRequest("El ID de la asamblea no coincide");
+            return BadRequest(ApiResponse<Guid>.FailureResponse("El ID de la asamblea no coincide"));
 
-        var command = new AddQuestionToAssembly(dto);
-        var questionId = await _mediator.Send(command, cancellationToken);
-        
-        return CreatedAtAction(
-            nameof(GetById), 
-            new { assemblyId, questionId }, 
-            questionId);
+        var result = await _mediator.Send(new AddQuestionToAssembly(dto), cancellationToken);
+
+        if (!result.Success)
+            return BadRequest(result);
+
+        return CreatedAtAction(nameof(GetById), new { assemblyId, questionId = result.Data }, result);
     }
 }

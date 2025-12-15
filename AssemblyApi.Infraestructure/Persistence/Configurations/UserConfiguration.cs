@@ -21,6 +21,7 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
 
         builder.Property(u => u.PasswordHash).HasColumnName("password_hash").HasMaxLength(255).IsRequired();
         builder.Property(u => u.PropertyId).HasColumnName("property_id").IsRequired();
+        builder.Property(u => u.RoleId).HasColumnName("role_id").HasMaxLength(10).IsRequired();
         builder.Property(u => u.IsActive).HasColumnName("is_active").IsRequired().HasDefaultValue(true);
         builder.Property(u => u.CreatedAt).HasColumnName("created_at").IsRequired();
         builder.Property(u => u.LastLoginAt).HasColumnName("last_login_at");
@@ -29,5 +30,10 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
             .WithMany()
             .HasForeignKey(u => u.PropertyId)
             .HasConstraintName("fk_users_property");
+
+        builder.HasOne<Role>()
+            .WithMany()
+            .HasForeignKey(u => u.RoleId)
+            .HasConstraintName("fk_users_role");
     }
 }

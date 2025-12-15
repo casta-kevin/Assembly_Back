@@ -19,20 +19,19 @@ public class OptionsController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<ActionResult<Guid>> AddOption(
-        Guid questionId, 
-        [FromBody] AddOptionToQuestionDto dto, 
+    public async Task<ActionResult<ApiResponse<Guid>>> AddOption(
+        Guid questionId,
+        [FromBody] AddOptionToQuestionDto dto,
         CancellationToken cancellationToken)
     {
         if (questionId != dto.QuestionId)
-            return BadRequest("El ID de la pregunta no coincide");
+            return BadRequest(ApiResponse<Guid>.FailureResponse("El ID de la pregunta no coincide"));
 
-        var command = new AddOptionToQuestion(dto);
-        var optionId = await _mediator.Send(command, cancellationToken);
-        
-        return CreatedAtAction(
-            nameof(AddOption), 
-            new { questionId, optionId }, 
-            optionId);
+        var result = await _mediator.Send(new AddOptionToQuestion(dto), cancellationToken);
+
+        if (!result.Success)
+            return BadRequest(result);
+
+        return CreatedAtAction(nameof(AddOption), new { questionId, optionId = result.Data }, result);
     }
 }

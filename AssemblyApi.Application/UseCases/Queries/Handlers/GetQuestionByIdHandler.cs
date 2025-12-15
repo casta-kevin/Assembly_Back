@@ -4,7 +4,7 @@ using MediatR;
 
 namespace AssemblyApi.Application.UseCases.Queries.Handlers;
 
-public class GetQuestionByIdHandler : IRequestHandler<GetQuestionById, QuestionDto?>
+public class GetQuestionByIdHandler : IRequestHandler<GetQuestionById, ApiResponse<QuestionDto?>>
 {
     private readonly IQuestionRepository _questionRepository;
 
@@ -13,28 +13,38 @@ public class GetQuestionByIdHandler : IRequestHandler<GetQuestionById, QuestionD
         _questionRepository = questionRepository;
     }
 
-    public async Task<QuestionDto?> Handle(GetQuestionById request, CancellationToken cancellationToken)
+    public async Task<ApiResponse<QuestionDto?>> Handle(GetQuestionById request, CancellationToken cancellationToken)
     {
-        var question = await _questionRepository.GetByIdAsync(request.Id, cancellationToken);
-        
-        if (question == null)
-            return null;
-
-        return new QuestionDto
+        try
         {
-            Id = question.Id,
-            AssemblyId = question.AssemblyId,
-            Title = question.Title,
-            Description = question.Description,
-            OrderIndex = question.OrderIndex,
-            StartDate = question.StartDate,
-            EndDate = question.EndDate,
-            Options = question.Options.Select(o => new QuestionOptionDto
+            var question = await _questionRepository.GetByIdAsync(request.Id, cancellationToken);
+
+            if (question == null)
+                return ApiResponse<QuestionDto?>.FailureResponse("La pregunta no existe");
+
+            var dto = new QuestionDto
             {
-                Id = o.Id,
-                Text = o.Text,
-                OrderIndex = o.OrderIndex
-            }).ToList()
-        };
+                Id = question.Id,
+                AssemblyId = question.AssemblyId,
+                Title = question.Title,
+                Description = question.Description,
+                QuestionSourceId = question.QuestionSourceId,
+                QuestionStatusId = question.QuestionStatusId,
+                OrderIndex = question.OrderIndex,
+                StartDate = question.StartDate,
+                EndDate = question.EndDate,
+                Options = question.Options.Select(o => new QuestionOptionDto
+                {
+                    Id = o.Id,
+                    Text = o.Text
+                }).ToList()
+            };
+
+            return ApiResponse<QuestionDto?>.SuccessResponse(dto);
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<QuestionDto?>.FailureResponse("Error al obtener la pregunta", new[] { ex.Message });
+        }
     }
 }

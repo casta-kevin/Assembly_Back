@@ -17,7 +17,10 @@ public class AssemblyConfirmedParticipantConfiguration : IEntityTypeConfiguratio
         builder.Property(c => c.ParticipantId).HasColumnName("participant_id").IsRequired();
         builder.Property(c => c.ConfirmedAt).HasColumnName("confirmed_at").IsRequired();
         builder.Property(c => c.ConfirmedByUserId).HasColumnName("confirmed_by_user_id");
-        builder.Property(c => c.ConfirmationMethodId).HasColumnName("confirmation_method_id").IsRequired();
+        builder.Property(c => c.ConfirmationMethodId)
+            .HasColumnName("confirmation_method_id")
+            .HasMaxLength(10)
+            .IsRequired();
 
         builder.HasIndex(c => new { c.AssemblyId, c.ParticipantId }).IsUnique().HasDatabaseName("uq_confirmed_assembly_participant");
 

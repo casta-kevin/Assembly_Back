@@ -4,41 +4,44 @@ using MediatR;
 
 namespace AssemblyApi.Application.UseCases.Queries.Handlers;
 
-public class GetAssemblyByIdHandler : IRequestHandler<GetAssemblyById, AssemblyDto?>
+public class GetAssemblyByIdHandler : IRequestHandler<GetAssemblyById, ApiResponse<AssemblyDto?>>
 {
     private readonly IAssemblyRepository _assemblyRepository;
-    private readonly IAssemblyStatusRepository _statusRepository;
 
-    public GetAssemblyByIdHandler(
-        IAssemblyRepository assemblyRepository,
-        IAssemblyStatusRepository statusRepository)
+    public GetAssemblyByIdHandler(IAssemblyRepository assemblyRepository)
     {
         _assemblyRepository = assemblyRepository;
-        _statusRepository = statusRepository;
     }
 
-    public async Task<AssemblyDto?> Handle(GetAssemblyById request, CancellationToken cancellationToken)
+    public async Task<ApiResponse<AssemblyDto?>> Handle(GetAssemblyById request, CancellationToken cancellationToken)
     {
-        var assembly = await _assemblyRepository.GetByIdAsync(request.Id, cancellationToken);
-        
-        if (assembly == null)
-            return null;
-
-        var status = await _statusRepository.GetByCodeAsync(assembly.AssemblyStatusId.ToString(), cancellationToken);
-
-        return new AssemblyDto
+        try
         {
-            Id = assembly.Id,
-            PropertyId = assembly.PropertyId,
-            Title = assembly.Title,
-            Description = assembly.Description,
-            Rules = assembly.Rules,
-            StartDatePlanned = assembly.StartDatePlanned,
-            EndDatePlanned = assembly.EndDatePlanned,
-            StartDateActual = assembly.StartDateActual,
-            EndDateActual = assembly.EndDateActual,
-            Status = assembly.IsInProgress() ? "In Progress" : assembly.IsClosed() ? "Closed" : "Scheduled",
-            CreatedAt = assembly.CreatedAt
-        };
+            var assembly = await _assemblyRepository.GetByIdAsync(request.Id, cancellationToken);
+
+            if (assembly == null)
+                return ApiResponse<AssemblyDto?>.FailureResponse("La asamblea no existe");
+
+            var dto = new AssemblyDto
+            {
+                Id = assembly.Id,
+                PropertyId = assembly.PropertyId,
+                Title = assembly.Title,
+                Description = assembly.Description,
+                Rules = assembly.Rules,
+                StartDatePlanned = assembly.StartDatePlanned,
+                EndDatePlanned = assembly.EndDatePlanned,
+                StartDateActual = assembly.StartDateActual,
+                EndDateActual = assembly.EndDateActual,
+                Status = assembly.IsInProgress() ? "In Progress" : assembly.IsClosed() ? "Closed" : "Scheduled",
+                CreatedAt = assembly.CreatedAt
+            };
+
+            return ApiResponse<AssemblyDto?>.SuccessResponse(dto);
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<AssemblyDto?>.FailureResponse("Error al obtener la asamblea", new[] { ex.Message });
+        }
     }
 }

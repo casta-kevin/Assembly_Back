@@ -9,13 +9,14 @@ public class User : Entity
     public string? Email { get; private set; }
     public string PasswordHash { get; private set; } = string.Empty;
     public Guid PropertyId { get; private set; }
+    public string RoleId { get; private set; } = string.Empty;
     public bool IsActive { get; private set; }
     public DateTime CreatedAt { get; private set; }
     public DateTime? LastLoginAt { get; private set; }
 
     private User() { }
 
-    public User(string username, string passwordHash, Guid propertyId, string? email = null)
+    public User(string username, string passwordHash, Guid propertyId, string? email, string roleId)
     {
         if (string.IsNullOrWhiteSpace(username))
             throw new DomainException("El nombre de usuario es requerido");
@@ -24,15 +25,19 @@ public class User : Entity
             throw new DomainException("El nombre de usuario debe tener al menos 3 caracteres");
 
         if (string.IsNullOrWhiteSpace(passwordHash))
-            throw new DomainException("El hash de contraseña es requerido");
+            throw new DomainException("El hash de contrasena es requerido");
 
         if (propertyId == Guid.Empty)
             throw new DomainException("La propiedad es requerida");
+
+        if (string.IsNullOrWhiteSpace(roleId))
+            throw new DomainException("El rol es requerido");
 
         Username = username;
         PasswordHash = passwordHash;
         PropertyId = propertyId;
         Email = email;
+        RoleId = roleId;
         IsActive = true;
         CreatedAt = DateTime.UtcNow;
     }
@@ -40,7 +45,7 @@ public class User : Entity
     public void UpdateEmail(string email)
     {
         if (!string.IsNullOrWhiteSpace(email) && !email.Contains('@'))
-            throw new DomainException("El email debe tener un formato válido");
+            throw new DomainException("El email debe tener un formato valido");
 
         Email = email;
     }
@@ -48,15 +53,23 @@ public class User : Entity
     public void UpdatePassword(string passwordHash)
     {
         if (string.IsNullOrWhiteSpace(passwordHash))
-            throw new DomainException("El hash de contraseña no puede estar vacío");
+            throw new DomainException("El hash de contrasena no puede estar vacio");
 
         PasswordHash = passwordHash;
+    }
+
+    public void AssignRole(string roleId)
+    {
+        if (string.IsNullOrWhiteSpace(roleId))
+            throw new DomainException("El rol es requerido");
+
+        RoleId = roleId;
     }
 
     public void Deactivate()
     {
         if (!IsActive)
-            throw new DomainException("El usuario ya está desactivado");
+            throw new DomainException("El usuario ya esta desactivado");
 
         IsActive = false;
     }
@@ -64,7 +77,7 @@ public class User : Entity
     public void Activate()
     {
         if (IsActive)
-            throw new DomainException("El usuario ya está activo");
+            throw new DomainException("El usuario ya esta activo");
 
         IsActive = true;
     }

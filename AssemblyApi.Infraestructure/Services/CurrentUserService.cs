@@ -29,4 +29,11 @@ public class CurrentUserService : ICurrentUserService
     {
         return _httpContextAccessor.HttpContext?.User.FindFirst(ClaimTypes.Name)?.Value ?? string.Empty;
     }
+
+    public string GetRoleId()
+    {
+        return _httpContextAccessor.HttpContext?.User.FindFirst("RoleId")?.Value
+            ?? _httpContextAccessor.HttpContext?.User.FindFirst(ClaimTypes.Role)?.Value
+            ?? string.Empty;
+    }
 }

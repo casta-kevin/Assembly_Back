@@ -8,12 +8,13 @@ public class AssemblyQuestion : Entity
     private readonly List<AssemblyQuestionOption> _options = new();
 
     public Guid AssemblyId { get; private set; }
-    public Guid QuestionStatusId { get; private set; }
+    public string QuestionStatusId { get; private set; } = string.Empty;
+    public string QuestionSourceId { get; private set; } = string.Empty;
     public string Title { get; private set; } = string.Empty;
     public string? Description { get; private set; }
-    public int OrderIndex { get; private set; }
     public DateTime? StartDate { get; private set; }
     public DateTime? EndDate { get; private set; }
+    public int OrderIndex { get; private set; }
     public DateTime CreatedAt { get; private set; }
     public Guid CreatedByUserId { get; private set; }
 
@@ -21,35 +22,45 @@ public class AssemblyQuestion : Entity
 
     private AssemblyQuestion() { }
 
-    public AssemblyQuestion(Guid assemblyId, string title, int orderIndex, Guid createdByUserId, Guid questionStatusId)
+    public AssemblyQuestion(
+        Guid assemblyId,
+        string title,
+        Guid createdByUserId,
+        string questionStatusId,
+        string questionSourceId,
+        int orderIndex)
     {
         if (assemblyId == Guid.Empty)
             throw new DomainException("La asamblea es requerida");
 
         if (string.IsNullOrWhiteSpace(title))
-            throw new DomainException("El título es requerido");
-
-        if (orderIndex < 0)
-            throw new DomainException("El orden debe ser mayor o igual a cero");
+            throw new DomainException("El titulo es requerido");
 
         if (createdByUserId == Guid.Empty)
             throw new DomainException("El usuario creador es requerido");
 
-        if (questionStatusId == Guid.Empty)
+        if (string.IsNullOrWhiteSpace(questionStatusId))
             throw new DomainException("El estado es requerido");
+
+        if (string.IsNullOrWhiteSpace(questionSourceId))
+            throw new DomainException("El origen de la pregunta es requerido");
+
+        if (orderIndex <= 0)
+            throw new DomainException("El orden debe ser mayor a cero");
 
         AssemblyId = assemblyId;
         Title = title;
-        OrderIndex = orderIndex;
         CreatedByUserId = createdByUserId;
         QuestionStatusId = questionStatusId;
+        QuestionSourceId = questionSourceId;
+        OrderIndex = orderIndex;
         CreatedAt = DateTime.UtcNow;
     }
 
     public void UpdateTitle(string title)
     {
         if (string.IsNullOrWhiteSpace(title))
-            throw new DomainException("El título no puede estar vacío");
+            throw new DomainException("El titulo no puede estar vacio");
 
         Title = title;
     }
@@ -68,30 +79,41 @@ public class AssemblyQuestion : Entity
         EndDate = endDate;
     }
 
-    public void ChangeStatus(Guid newStatusId)
+    public void ChangeStatus(string newStatusId)
     {
-        if (newStatusId == Guid.Empty)
+        if (string.IsNullOrWhiteSpace(newStatusId))
             throw new DomainException("El estado es requerido");
 
         QuestionStatusId = newStatusId;
     }
 
-    public void AddOption(string text, int orderIndex, string? value = null)
+    public void UpdateSource(string sourceId)
+    {
+        if (string.IsNullOrWhiteSpace(sourceId))
+            throw new DomainException("El origen es requerido");
+
+        QuestionSourceId = sourceId;
+    }
+
+    public void UpdateOrder(int orderIndex)
+    {
+        if (orderIndex <= 0)
+            throw new DomainException("El orden debe ser mayor a cero");
+
+        OrderIndex = orderIndex;
+    }
+
+    public AssemblyQuestionOption AddOption(string text, string? value = null)
     {
         if (string.IsNullOrWhiteSpace(text))
-            throw new DomainException("El texto de la opción es requerido");
-
-        if (orderIndex < 0)
-            throw new DomainException("El orden debe ser mayor o igual a cero");
-
-        if (_options.Any(o => o.OrderIndex == orderIndex))
-            throw new DomainException("Ya existe una opción con ese orden");
+            throw new DomainException("El texto de la opcion es requerido");
 
         if (_options.Count >= 10)
-            throw new DomainException("No se pueden agregar más de 10 opciones");
+            throw new DomainException("No se pueden agregar mas de 10 opciones");
 
-        var option = new AssemblyQuestionOption(Id, text, orderIndex, value);
+        var option = new AssemblyQuestionOption(Id, text, value);
         _options.Add(option);
+        return option;
     }
 
     public bool IsActive() => Options.Any(o => o.IsActive);

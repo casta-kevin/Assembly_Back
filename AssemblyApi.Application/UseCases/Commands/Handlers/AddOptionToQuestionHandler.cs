@@ -1,10 +1,10 @@
+using AssemblyApi.Application.DTOs;
 using AssemblyApi.Application.Repositories;
-using AssemblyApi.Domain.Exceptions;
 using MediatR;
 
 namespace AssemblyApi.Application.UseCases.Commands.Handlers;
 
-public class AddOptionToQuestionHandler : IRequestHandler<AddOptionToQuestion, Guid>
+public class AddOptionToQuestionHandler : IRequestHandler<AddOptionToQuestion, ApiResponse<Guid>>
 {
     private readonly IQuestionRepository _questionRepository;
     private readonly IUnitOfWork _unitOfWork;
@@ -17,21 +17,26 @@ public class AddOptionToQuestionHandler : IRequestHandler<AddOptionToQuestion, G
         _unitOfWork = unitOfWork;
     }
 
-    public async Task<Guid> Handle(AddOptionToQuestion request, CancellationToken cancellationToken)
+    public async Task<ApiResponse<Guid>> Handle(AddOptionToQuestion request, CancellationToken cancellationToken)
     {
-        var data = request.Data;
+        try
+        {
+            var data = request.Data;
 
-        var question = await _questionRepository.GetByIdAsync(data.QuestionId, cancellationToken);
-        
-        if (question == null)
-            throw new DomainException("La pregunta no existe");
+            var question = await _questionRepository.GetByIdAsync(data.QuestionId, cancellationToken);
 
-        question.AddOption(data.Text, data.OrderIndex);
+            if (question == null)
+                return ApiResponse<Guid>.FailureResponse("La pregunta no existe");
 
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+            var option = question.AddOption(data.Text);
 
-        var option = question.Options.First(o => o.OrderIndex == data.OrderIndex && o.Text == data.Text);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return option.Id;
+            return ApiResponse<Guid>.SuccessResponse(option.Id, "Opcion agregada correctamente");
+        }
+        catch (Exception ex)
+        {
+            return ApiResponse<Guid>.FailureResponse(ex.Message);
+        }
     }
 }
