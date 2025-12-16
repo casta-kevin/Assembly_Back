@@ -42,5 +42,21 @@ public class AssemblyConfiguration : IEntityTypeConfiguration<Assembly>
             .WithMany()
             .HasForeignKey(a => a.AssemblyStatusId)
             .HasConstraintName("fk_assemblies_status");
+
+        builder.HasMany(a => a.Participants)
+            .WithOne()
+            .HasForeignKey(p => p.AssemblyId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasMany(a => a.Questions)
+            .WithOne()
+            .HasForeignKey(q => q.AssemblyId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Navigation(a => a.Participants)
+            .UsePropertyAccessMode(PropertyAccessMode.Field);
+
+        builder.Navigation(a => a.Questions)
+            .UsePropertyAccessMode(PropertyAccessMode.Field);
     }
 }

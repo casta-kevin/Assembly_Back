@@ -20,9 +20,12 @@ public class QuestionsController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<ApiResponse<List<QuestionDto>>>> GetByAssemblyId(Guid assemblyId, CancellationToken cancellationToken)
+    public async Task<ActionResult<ApiResponse<List<QuestionDto>>>> GetByAssemblyId(
+        Guid assemblyId,
+        [FromQuery] QuestionQueryParametersDto queryParameters,
+        CancellationToken cancellationToken)
     {
-        var result = await _mediator.Send(new GetQuestionsByAssemblyId(assemblyId), cancellationToken);
+        var result = await _mediator.Send(new GetQuestionsByAssemblyId(assemblyId, queryParameters), cancellationToken);
 
         if (!result.Success)
             return BadRequest(result);

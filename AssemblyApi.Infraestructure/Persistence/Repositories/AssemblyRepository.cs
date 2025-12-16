@@ -22,8 +22,8 @@ public class AssemblyRepository : IAssemblyRepository
     public async Task<Assembly?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         return await _context.Assemblies
-            .Include("_participants")
-            .Include("_questions")
+            .Include(a => a.Participants)
+            .Include(a => a.Questions)
             .FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
     }
 }

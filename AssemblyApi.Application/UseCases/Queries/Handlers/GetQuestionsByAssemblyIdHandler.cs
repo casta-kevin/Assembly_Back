@@ -17,7 +17,8 @@ public class GetQuestionsByAssemblyIdHandler : IRequestHandler<GetQuestionsByAss
     {
         try
         {
-            var questions = await _questionRepository.GetByAssemblyIdAsync(request.AssemblyId, cancellationToken);
+            var parameters = request.Parameters ?? new QuestionQueryParametersDto();
+            var questions = await _questionRepository.GetByAssemblyIdAsync(request.AssemblyId, parameters, cancellationToken);
 
             var dto = questions.Select(q => new QuestionDto
             {
